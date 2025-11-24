@@ -10,6 +10,7 @@ from .models import Comment, News
 
 class NewsList(generic.ListView):
     """Список новостей."""
+
     model = News
     template_name = 'news/home.html'
 
@@ -17,22 +18,34 @@ class NewsList(generic.ListView):
         """
         Выводим только несколько последних новостей.
 
-        Их количество определяется в настройках проекта.
+        Количество определяется в настройках проекта.
         """
+        # Получение QS через атрибут model соответсвует лучшим практикам Django
+        # и принципу DRY.
+        # Использование select_related приведет декартову произведению.
         return self.model.objects.prefetch_related(
-            'comment_set'
+            'comment_set'  # Авто-сгенерированный related_name
         )[:settings.NEWS_COUNT_ON_HOME_PAGE]
 
 
 class NewsDetail(generic.DetailView):
+    """Обрабатывам GET-запрос к отдельной новости."""
+
     model = News
     template_name = 'news/detail.html'
 
     def get_object(self, queryset=None):
+        """Получаем новость и комментарии."""
         obj = get_object_or_404(
+            # prefetch_related сначала загружает комментарии, затем авторов,
+            # т.к. работает рекурсивно. Таким образом QS хранит новость,
+            # комментарии к ней, и модель Пользователя,
+            # который является автором комментария
             self.model.objects.prefetch_related('comment_set__author'),
             pk=self.kwargs['pk']
         )
+        # <News: News object (1)> и спец. структура в которой благодаря методу
+        # prefetch_related хранятся комментарии и их авторы
         return obj
 
     def get_context_data(self, **kwargs):
@@ -47,6 +60,12 @@ class NewsComment(
         generic.detail.SingleObjectMixin,
         generic.FormView
 ):
+    """
+    Создание комментария к отдельной новости.
+
+    Обрабатываем POST-запрос к отдельной новости.
+    """
+
     model = News
     form_class = CommentForm
     template_name = 'news/detail.html'
@@ -56,6 +75,7 @@ class NewsComment(
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
+        # Создаёт объект модели Comment
         comment = form.save(commit=False)
         comment.news = self.object
         comment.author = self.request.user
@@ -68,11 +88,21 @@ class NewsComment(
 
 
 class NewsDetailView(generic.View):
+    """
+    Обрабатывает входящие HTTP-запросы.
 
+    Перенаправляем запросы на соответствующие представления в зависимости от
+    метода HTTP.
+    """
+
+    # Работает, потому что явно определен, вызывается через метод
+    # dispatch род. класса
     def get(self, request, *args, **kwargs):
         view = NewsDetail.as_view()
         return view(request, *args, **kwargs)
 
+    # Работает, потому что явно определен, вызывается через метод
+    # dispatch род. класса
     def post(self, request, *args, **kwargs):
         view = NewsComment.as_view()
         return view(request, *args, **kwargs)
@@ -80,6 +110,7 @@ class NewsDetailView(generic.View):
 
 class CommentBase(LoginRequiredMixin):
     """Базовый класс для работы с комментариями."""
+
     model = Comment
 
     def get_success_url(self):
@@ -90,6 +121,9 @@ class CommentBase(LoginRequiredMixin):
 
     def get_queryset(self):
         """Пользователь может работать только со своими комментариями."""
+
+        # Переопределяем выборку, чтобы Update, Delete получали только свои
+        # комменты.
         return self.model.objects.filter(author=self.request.user)
 
 
