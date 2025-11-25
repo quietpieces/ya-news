@@ -65,13 +65,7 @@ class TestRoutes(TestCase):
         for name in ('news:edit', 'news:delete'):
             # Каждая итерация цикла будет определенна как новый тест
             with self.subTest(name=name):
-                # Получаем адрес страницы редактирования или удаления комментария:
                 url = reverse(name, args=(self.comment.pk,))
-                # Получаем ожидаемый адрес страницы логина,
-                # на который будет перенаправлен пользователь.
-                # Учитываем, что в адресе будет параметр next, в котором передаётся
-                # адрес страницы, с которой пользователь был переадресован.
                 redirect_url = f'{login_url}?next={url}'
                 response = self.client.get(url)
-                # Проверяем, что редирект приведёт именно на указанную ссылку.
                 self.assertRedirects(response, redirect_url)
