@@ -67,3 +67,10 @@ def news_pk_for_args(news):
 @pytest.fixture
 def comment_pk_for_args(comment):
     return (comment.pk,)
+
+
+@pytest.fixture
+def form_data():
+    return {
+        'text': 'Новый текст.',
+    }

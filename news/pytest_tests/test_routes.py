@@ -26,6 +26,13 @@ def test_pages_availability_for_anonymous_client(client, name, args):
     assert response.status_code == HTTPStatus.OK
 
 
+def test_anonymous_client_get_logout(client):
+    """Проверяет, что страница логаута не принимает GET-запрос."""
+    url = reverse('users:logout')
+    response = client.get(url)
+    assert response.status_code == HTTPStatus.METHOD_NOT_ALLOWED
+
+
 @pytest.mark.parametrize(
         'parametrized_client, expected_status',
         (
@@ -47,7 +54,7 @@ def test_availability_for_comment_edit_and_delete(
     Доступность страниц для редактирования и удаления комментариев.
 
     Ожидается, что автор сможет редактировать и удалять комментарии,
-    а не автор получит статус HTTP 404 (NOT FOUND).
+    а не автор получит статус HTTP 404.
     """
     url = reverse(name, args=args)
     response = parametrized_client.get(url)
