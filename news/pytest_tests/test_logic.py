@@ -1,3 +1,15 @@
+"""
+Проверка функциональности создания, редактирования и удаления комментариев.
+
+Тестируются следующие аспекты:
+- Возможность создания комментариев для авторизованных и анонимных
+  пользователей.
+- Проверка на использование запрещённых слов в комментариях.
+- Возможность редактирования и удаления комментариев автором.
+- Ограничение на редактирование и удаление комментариев для неавторизованных
+  пользователей.
+"""
+
 import pytest
 
 from django.urls import reverse
@@ -13,6 +25,12 @@ from news.models import Comment
 def test_anonymous_client_cant_create_comment(
         client, form_data, news_pk_for_args
 ):
+    """
+    Тест проверяет, что анонимный пользователь не может создать комментарий.
+
+    При попытке создания комментария должен произойти редирект на страницу
+    логина.
+    """
     url = reverse('news:detail', args=news_pk_for_args)
     response = client.post(url, data=form_data)
     login_url = reverse('users:login')
@@ -24,6 +42,11 @@ def test_anonymous_client_cant_create_comment(
 def test_user_can_create_comments(
     author, author_client, form_data, news_pk_for_args
 ):
+    """
+    Тест проверяет возможность пользователя создать комментарий.
+
+    Проверяется корректность сохранения данных и времени создания комментария.
+    """
     url = reverse('news:detail', args=news_pk_for_args)
     current_time = timezone.now()
     response = author_client.post(url, data=form_data)
@@ -37,6 +60,12 @@ def test_user_can_create_comments(
 
 def test_user_cant_use_bad_words(
         author_client, news_pk_for_args, form_data):
+    """
+    Тест проверяет запрет на использование запрещенных слов в комментариях.
+
+    Если пользователь пытается использовать запрещенное слово,
+    форма должна вернуть ошибку.
+    """
     url = reverse('news:detail', args=news_pk_for_args)
     form_data['text'] = f'Какой-то текст, {BAD_WORDS[0]}, ещё текст.'
     response = author_client.post(url, data=form_data)
@@ -50,6 +79,11 @@ def test_author_can_edit_comment(
         author_client, form_data, comment,
         comment_pk_for_args, news_pk_for_args
 ):
+    """
+    Тест проверяет возможность автора редактировать свой комментарий.
+    
+    После редактирования проверяется, что текст комментария обновлен.
+    """
     url = reverse('news:edit', args=comment_pk_for_args)
     response = author_client.post(url, data=form_data)
     assertRedirects(
@@ -63,6 +97,11 @@ def test_author_can_edit_comment(
 def test_other_user_cant_edit_comment(
         not_author_client, form_data, comment, comment_pk_for_args
 ):
+    """
+    Проверяет, что пользователь не сможет отредактировать чужой комментарий.
+
+    Попытка редактирования должна возвращать ошибку 404.
+    """
     url = reverse('news:edit', args=comment_pk_for_args)
     response = not_author_client.post(url, data=form_data)
     assert response.status_code == HTTPStatus.NOT_FOUND
@@ -73,6 +112,11 @@ def test_other_user_cant_edit_comment(
 def test_author_can_delete_comment(
         author_client, comment_pk_for_args, news_pk_for_args
 ):
+    """
+    Тест проверяет возможность автора удалить свой комментарий.
+
+    После удаления проверяется отсутствие комментария в базе данных.
+    """
     url = reverse('news:delete', args=comment_pk_for_args)
     response = author_client.post(url)
     assertRedirects(
@@ -82,7 +126,13 @@ def test_author_can_delete_comment(
 
 
 def test_other_user_cant_delete_comment(
-        not_author_client, comment_pk_for_args):
+        not_author_client, comment_pk_for_args
+):
+    """
+    Проверяет, что пользователь не сможет удалить чужой комментарий.
+
+    Попытка удаления должна возвращать ошибку 404.
+    """
     url = reverse('news:delete', args=comment_pk_for_args)
     response = not_author_client.post(url)
     assert response.status_code == HTTPStatus.NOT_FOUND
